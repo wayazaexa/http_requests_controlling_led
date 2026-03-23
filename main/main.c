@@ -9,6 +9,7 @@
 #include <string.h>
 #include "esp_log.h"
 #include "esp_event.h"
+#include "hal/gpio_types.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
@@ -78,6 +79,14 @@ static esp_err_t led_off_handler(httpd_req_t *req)
     return redirect_root(req);
 }
 
+/* Handler to toggle LED */
+static esp_err_t led_toggle_handler(httpd_req_t *req)
+{
+    int level = gpio_get_level(LED_GPIO);
+    level ? gpio_set_level(LED_GPIO, 0) : gpio_set_level(LED_GPIO, 1);
+    return redirect_root(req);
+}
+
 /* Handler to return LED status */
 static esp_err_t status_handler(httpd_req_t *req)
 {
@@ -120,6 +129,14 @@ static httpd_handle_t start_webserver(void)
             .user_ctx  = NULL
         };
         httpd_register_uri_handler(server, &off);
+
+        httpd_uri_t toggle = {
+            .uri       = "/toggle",
+            .method    = HTTP_GET,
+            .handler   = led_toggle_handler,
+            .user_ctx  = NULL
+        };
+        httpd_register_uri_handler(server, &toggle);
 
         httpd_uri_t status = {
             .uri       = "/status",
@@ -197,7 +214,7 @@ void app_main(void)
 
     // Configure LED GPIO
     gpio_reset_pin(LED_GPIO);
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_level(LED_GPIO, 0);
 
     // Start web server
